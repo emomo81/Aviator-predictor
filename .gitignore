@@ -1,0 +1,22 @@
+# deps
+node_modules/
+
+# next.js
+web/.next/
+web/out/
+web/next-env.d.ts
+
+# env & secrets
+.env
+.env.local
+.env.*.local
+
+# trained artefacts (regenerate with `npm run train`)
+server/data/model.json
+server/data/dataset.csv
+server/data/samples/*.png
+
+# logs / os
+npm-debug.log*
+*.log
+.DS_Store

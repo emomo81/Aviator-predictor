@@ -1,0 +1,24 @@
+{
+  "name": "aviator-predictor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Gemini vision -> feature engineering -> random forest pipeline for crash-round analysis",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:server": "npm run dev --workspace server",
+    "dev:web": "npm run dev --workspace web",
+    "generate:dataset": "node server/scripts/generate-dataset.js",
+    "generate:screenshot": "node server/scripts/make-sample-screenshot.js",
+    "train": "node server/src/ml/train.js",
+    "test": "node --test server/test/*.test.js",
+    "build": "npm run build --workspace web"
+  }
+}
