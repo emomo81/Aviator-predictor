@@ -54,6 +54,12 @@ test('buildRows emits one row per predictable round and never leaks the target',
   assert.ok(X.every((v) => v.length === FEATURE_NAMES.length));
 });
 
+test('csv reader auto-detects the repository Multiplier header', () => {
+  const { rounds, meta } = normaliseDataset('Multiplier\n2.80\n6.55\n1.10\n');
+  assert.equal(meta.multiplierKey, 'Multiplier');
+  assert.deepEqual(rounds.map((r) => r.multiplier), [2.8, 6.55, 1.1]);
+});
+
 test('csv reader auto-detects column names and drops unusable rows', () => {
   const csv = ['id,created_at,crash_point', '1,2025-01-01T00:00:00Z,1.50', '2,2025-01-01T00:00:30Z,0.40', '3,2025-01-01T00:01:00Z,7.25'].join('\n');
   const { rounds, meta } = normaliseDataset(csv);

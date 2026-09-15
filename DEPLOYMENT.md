@@ -2,8 +2,9 @@
 
 The stack splits cleanly: the **Next.js UI** goes to Vercel, the **Express API** goes to Render,
 and **Supabase** is optional storage for the trained model (and, if you want it, datasets and an
-audit log). The repo stays free of large artifacts: `model.json` and `dataset.csv` are gitignored,
-so the API obtains the model at boot from one of three sources (below).
+audit log). A model trained from the repository's `multipliers.csv` is included at
+`server/data/model.json`; you can deploy it directly or replace it with a model loaded from one of
+the remote sources below.
 
 ## 1. Render (API)
 
@@ -25,13 +26,14 @@ Environment variables:
 | `GEMINI_MODEL`   | e.g. `gemini-3.5-flash`                                        |
 | `MODEL_URL`      | https URL to a `model.json` to load into memory at boot, **or** |
 | `SUPABASE_URL` + `SUPABASE_KEY` | Read `model.json` from the private `models` bucket, **or** |
-| (none)           | If a `dataset.csv` is present the API trains in memory at boot; otherwise it serves with "no model". |
+| (none)           | Uses the checked-in `server/data/model.json`. If absent, a local `dataset.csv` can be trained in memory at boot. |
 
-`PORT` is injected by Render and honoured. The trained model is never written to Render's ephemeral
-disk when it comes from a URL/Supabase; it lives in memory.
+`PORT` is injected by Render and honoured. A model fetched from a URL/Supabase or trained at boot
+lives in memory and is not written to Render's ephemeral disk.
 
-To publish a model: train locally (`npm run train`), then upload `server/data/model.json` to the
-`models` bucket (Supabase) or any static host (MODEL_URL).
+To publish a replacement model: train locally (`npm --prefix server run train`) and commit the new
+`server/data/model.json`. Alternatively, remove the local bundle in your deployment and upload it to
+the `models` bucket (Supabase), or put it on a static host and set `MODEL_URL`.
 
 ## 2. Vercel (UI)
 
