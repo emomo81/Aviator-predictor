@@ -26,7 +26,7 @@ Environment variables:
 | `GEMINI_MODEL`   | e.g. `gemini-3.5-flash`                                        |
 | `MODEL_URL`      | https URL to a `model.json` to load into memory at boot, **or** |
 | `SUPABASE_URL` + `SUPABASE_KEY` | Read `model.json` from the private `models` bucket, **or** |
-| (none)           | Uses the checked-in `server/data/model.json`. If absent, a local `dataset.csv` can be trained in memory at boot. |
+| (none)           | Uses the checked-in `server/data/model.json`. If absent, the repo's `multipliers.csv` can be trained in memory at boot. |
 
 `PORT` is injected by Render and honoured. A model fetched from a URL/Supabase or trained at boot
 lives in memory and is not written to Render's ephemeral disk.

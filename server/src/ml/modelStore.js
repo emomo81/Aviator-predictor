@@ -71,7 +71,7 @@ function revive(bundle) {
  *   1. local model.json already present -> nothing to do
  *   2. MODEL_URL -> download model.json and hold it in memory
  *   3. SUPABASE_URL + SUPABASE_KEY -> read model.json from the "models" storage bucket
- *   4. a local dataset.csv -> train in memory at boot
+ *   4. the repo's multipliers.csv -> train in memory at boot
  * Each source is optional; without any of them the API still runs and reports "no model".
  */
 export async function bootstrapModel() {
@@ -97,11 +97,15 @@ export async function bootstrapModel() {
     return { source: 'supabase', ...describeModel(memoryBundle) };
   }
 
-  const datasetPath = process.env.DATASET_PATH ?? path.resolve(import.meta.dirname, '../../data/dataset.csv');
+  // Same default dataset the trainer uses (see DEFAULT_DATASET_PATH in train.js): the raw
+  // chronological multipliers.csv at the repo root.
+  const datasetPath = process.env.DATASET_PATH
+    ? path.resolve(process.env.DATASET_PATH)
+    : path.resolve(import.meta.dirname, '../../..', 'multipliers.csv');
   try {
     await readFile(datasetPath, 'utf8');
   } catch {
-    return { source: 'none', loaded: false, reason: 'no model.json, MODEL_URL, SUPABASE_* or dataset.csv available at boot' };
+    return { source: 'none', loaded: false, reason: 'no model.json, MODEL_URL, SUPABASE_* or multipliers.csv available at boot' };
   }
   const { train } = await import('./train.js');
   const { bundle } = await train({ data: datasetPath, trees: 40, depth: 8 });
