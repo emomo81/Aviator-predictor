@@ -9,6 +9,11 @@ import { normaliseDataset } from './ml/csv.js';
 
 const router = Router();
 
+const REPO_ROOT = path.resolve(import.meta.dirname, '../..');
+// The checked-in raw chronological dataset - the same file the model trains from
+// (see DEFAULT_DATASET_PATH in ml/train.js). server/data/dataset.csv does not exist.
+const DEFAULT_DATASET_FILE = path.join(REPO_ROOT, 'multipliers.csv');
+
 /** Accepts { image: "data:...;base64,..." } | { image: "<base64>" } | raw image bytes. */
 function readImage(req) {
   if (Buffer.isBuffer(req.body) && req.body.length) return { image: req.body, mimeType: req.get('content-type') };
@@ -97,16 +102,35 @@ router.post('/predict', async (req, res) => {
   });
 });
 
+/** Resolve a ?file= query to a path inside the repo root (traversal-safe), else the default dataset. */
+function resolveDatasetFile(raw) {
+  if (!raw) return DEFAULT_DATASET_FILE;
+  const candidate = path.resolve(REPO_ROOT, String(raw));
+  const rel = path.relative(REPO_ROOT, candidate);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    const error = new Error(`?file= must stay inside the repository root (${REPO_ROOT}).`);
+    error.status = 400;
+    throw error;
+  }
+  return candidate;
+}
+
 /** What the trainer would see, for debugging a new dataset. */
 router.get('/dataset', async (req, res) => {
-  const file = req.query.file ? path.resolve(String(req.query.file)) : path.resolve(import.meta.dirname, '../data/dataset.csv');
+  let file;
+  try {
+    file = resolveDatasetFile(req.query.file);
+  } catch (error) {
+    res.status(error.status ?? 400).json({ ok: false, error: error.message });
+    return;
+  }
   try {
     const text = await readFile(file, 'utf8');
     const { rounds, meta } = normaliseDataset(text);
     const values = rounds.map((r) => r.multiplier);
     res.json({
       ok: true,
-      file: path.relative(process.cwd(), file),
+      file: path.relative(REPO_ROOT, file) || path.basename(file),
       ...meta,
       rounds: rounds.length,
       firstRound: rounds[0] ?? null,
@@ -121,7 +145,7 @@ router.get('/dataset', async (req, res) => {
       sample: rounds.slice(0, 5),
     });
   } catch (error) {
-    res.status(404).json({ ok: false, error: error.message, file });
+    res.status(404).json({ ok: false, error: error.message, file: path.relative(REPO_ROOT, file) || path.basename(file) });
   }
 });
 
