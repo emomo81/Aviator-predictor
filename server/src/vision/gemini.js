@@ -7,6 +7,7 @@
  */
 import { GoogleGenAI } from '@google/genai';
 import { EXTRACTION_PROMPT, EXTRACTION_SCHEMA, normaliseExtraction, DEFAULTS } from './schema.js';
+import { mockExtract } from './mock.js';
 
 export function visionConfig() {
   const apiKey = process.env.GEMINI_API_KEY?.trim() || '';
@@ -65,6 +66,24 @@ function parseModelJson(text) {
   return JSON.parse(body.slice(start, end + 1));
 }
 
+/** True when the failure is a transport problem, not an API/auth/model error. */
+function isNetworkError(message) {
+  return /fetch failed|ECONNREFUSED|ECONNRESET|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|EPIPE|socket hang up|network|undici|abort/i.test(message);
+}
+
+function offlineResult(inlineData, options, reason) {
+  return {
+    extraction: mockExtract(inlineData.data, options),
+    meta: {
+      provider: 'mock',
+      model: 'offline-mock-extractor',
+      reason,
+      imageBytes: Math.floor((inlineData.data.length * 3) / 4),
+      mimeType: inlineData.mimeType,
+    },
+  };
+}
+
 /**
  * @param {string|Buffer} image
  * @returns {Promise<{extraction: object, meta: object}>}
@@ -74,22 +93,11 @@ export async function extractFromImage(image, options = {}) {
   const inlineData = toInlineData(image, options.mimeType);
 
   if (config.mock) {
-    const { mockExtract } = await import('./mock.js');
-    const extraction = mockExtract(inlineData.data, options);
-    return {
-      extraction,
-      meta: {
-        provider: 'mock',
-        model: 'offline-mock-extractor',
-        reason: config.apiKey ? 'VISION_MOCK=true' : 'GEMINI_API_KEY not set',
-        imageBytes: Math.floor((inlineData.data.length * 3) / 4),
-        mimeType: inlineData.mimeType,
-      },
-    };
+    return offlineResult(inlineData, options, config.apiKey ? 'VISION_MOCK=true' : 'GEMINI_API_KEY not set');
   }
 
   const ai = new GoogleGenAI({ apiKey: config.apiKey });
-  const errors = [];
+  const failures = [];
 
   for (const model of config.models) {
     try {
@@ -123,13 +131,28 @@ export async function extractFromImage(image, options = {}) {
         },
       };
     } catch (error) {
-      errors.push(`${model}: ${error.message}`);
-      const retriable = /404|not found|unsupported|PERMISSION_DENIED/i.test(error.message);
-      if (!retriable) break;
+      failures.push({ model, message: error.message });
+      // A transport failure affects every model, so stop retrying and fall back below.
+      if (isNetworkError(error.message)) break;
+      // Only switch models on model-availability errors; a bad key fails for all models.
+      if (!/404|not found|unsupported/i.test(error.message)) break;
     }
   }
 
-  throw new Error(`Gemini vision call failed. Tried: ${errors.join(' | ')}`);
+  const allNetwork = failures.length > 0 && failures.every((f) => isNetworkError(f.message));
+  if (allNetwork) {
+    // The sandbox / offline environment cannot reach Gemini. Degrade gracefully instead of
+    // returning 502; meta.reason tells the caller exactly why the mock took over.
+    return offlineResult(
+      inlineData,
+      options,
+      `Gemini endpoint unreachable from this environment (network blocked): ${failures
+        .map((f) => `${f.model}: ${f.message}`)
+        .join(' | ')} - fell back to the offline mock extractor.`,
+    );
+  }
+
+  throw new Error(`Gemini vision call failed. Tried: ${failures.map((f) => `${f.model}: ${f.message}`).join(' | ')}`);
 }
 
 export { DEFAULTS };
