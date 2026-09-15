@@ -1,0 +1,24 @@
+# Optional Render blueprint for the API. Deploy the Next.js app separately on Vercel
+# (set its root directory to `web` and API_BASE_URL to this service's URL).
+services:
+  - type: web
+    name: aviator-api
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: GEMINI_API_KEY
+        sync: false        # set in the dashboard; do not commit
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
+      # The trained model is not in git (it is a build artifact). Provide one of:
+      #   MODEL_URL   - an https URL to a model.json the API downloads at boot, or
+      #   SUPABASE_*  - credentials so the API loads dataset/model from Supabase, or
+      # commit the model and remove it from .gitignore.
+      - key: MODEL_URL
+        sync: false

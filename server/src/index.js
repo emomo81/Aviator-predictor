@@ -1,7 +1,7 @@
 import express from 'express';
 import routes from './routes.js';
 import { visionConfig } from './vision/gemini.js';
-import { loadModel } from './ml/modelStore.js';
+import { bootstrapModel } from './ml/modelStore.js';
 import { DISCLAIMER } from './pipeline.js';
 
 const app = express();
@@ -34,12 +34,18 @@ app.use((error, _req, res, _next) => {
 });
 
 const host = process.env.API_HOST ?? '0.0.0.0';
-const port = Number(process.env.API_PORT ?? 4000);
+// Render (and most PaaS) inject PORT; keep API_PORT for local/dev parity.
+const port = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
 
 const vision = visionConfig();
-const model = await loadModel();
+let model;
+try {
+  model = await bootstrapModel();
+} catch (error) {
+  model = { loaded: false, source: 'error', reason: error.message };
+}
 console.log(`[api] vision: ${vision.mock ? `MOCK (${vision.apiKey ? 'VISION_MOCK=true' : 'no GEMINI_API_KEY'})` : `gemini ${vision.models.join(' -> ')}`}`);
-console.log(`[api] model:  ${model.loaded ? `${model.dataset?.rounds ?? '?'} rounds, trained ${model.trainedAt}` : model.reason}`);
+console.log(`[api] model:  ${model.loaded ? `${model.dataset?.rounds ?? '?'} rounds via ${model.source}` : `not loaded (${model.source}): ${model.reason}`}`);
 
 app.listen(port, host, () => {
   console.log(`[api] listening on http://${host}:${port}`);
