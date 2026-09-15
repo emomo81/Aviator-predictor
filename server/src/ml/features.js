@@ -56,7 +56,9 @@ function streakFromEnd(values, predicate) {
  */
 export function buildFeatures(history, meta = {}) {
   const raw = (history ?? []).map((m) => Math.max(1, Number(m) || 1));
-  const l = raw.map(Math.log10);
+  // Keep feature and target transforms on the same robust scale. A handful of extreme
+  // multipliers (the repository data reaches 658,072x) must not dominate rolling statistics.
+  const l = raw.map(clampLog);
   const n = l.length;
   const last = n ? l[n - 1] : 0;
 

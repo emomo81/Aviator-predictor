@@ -113,8 +113,8 @@ router.get('/dataset', async (req, res) => {
       lastRound: rounds[rounds.length - 1] ?? null,
       stats: {
         mean: values.length ? Number((values.reduce((a, b) => a + b, 0) / values.length).toFixed(4)) : null,
-        max: values.length ? Math.max(...values) : null,
-        min: values.length ? Math.min(...values) : null,
+        max: values.length ? values.reduce((best, value) => (value > best ? value : best), -Infinity) : null,
+        min: values.length ? values.reduce((best, value) => (value < best ? value : best), Infinity) : null,
         shareOver2: values.length ? Number((values.filter((v) => v >= 2).length / values.length).toFixed(4)) : null,
         shareOver10: values.length ? Number((values.filter((v) => v >= 10).length / values.length).toFixed(4)) : null,
       },

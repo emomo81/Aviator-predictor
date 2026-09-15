@@ -68,12 +68,22 @@ export function auc(labels, scores) {
   const pairs = labels.map((l, i) => ({ l, s: scores[i] })).sort((a, b) => a.s - b.s);
   let rankSum = 0;
   let positives = 0;
-  for (let i = 0; i < pairs.length; i += 1) {
-    if (pairs[i].l === 1) {
-      positives += 1;
-      rankSum += i + 1;
+
+  // A forest emits many identical leaf probabilities. Assign every tied score its average
+  // rank; using array order to break ties can make an uninformative classifier look skilled.
+  for (let start = 0; start < pairs.length;) {
+    let end = start + 1;
+    while (end < pairs.length && pairs[end].s === pairs[start].s) end += 1;
+    const averageRank = ((start + 1) + end) / 2;
+    for (let i = start; i < end; i += 1) {
+      if (pairs[i].l === 1) {
+        positives += 1;
+        rankSum += averageRank;
+      }
     }
+    start = end;
   }
+
   const negatives = pairs.length - positives;
   if (positives === 0 || negatives === 0) return 0.5;
   return (rankSum - (positives * (positives + 1)) / 2) / (positives * negatives);
