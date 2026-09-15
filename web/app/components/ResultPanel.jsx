@@ -125,7 +125,7 @@ export default function ResultPanel({ result }) {
                 <td>{s.cashOutAt.toFixed(2)}x</td>
                 <td>{(s.probabilityOfReaching * 100).toFixed(1)}%</td>
                 <td className="muted">
-                  {s.baselineProbability == null ? '—' : `${(s.baselineProbability * 100).toFixed(1)}%`}
+                  {s.baselineProbability == null ? 'n/a' : `${(s.baselineProbability * 100).toFixed(1)}%`}
                 </td>
                 <td className={s.expectedReturnPerUnitStaked < 0 ? 'neg' : 'pos'}>
                   {s.expectedReturnPerUnitStaked >= 0 ? '+' : ''}
